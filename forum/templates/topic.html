@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block body %}
+  {% if session.logged_in %}
+    <form action="{{ '/topic={0}'.format(session.get('topic')) }}" method=post class=add-msg>
+      <dl>
+        <dt>Text:
+        <dd><textarea name=msg rows=5 cols=40></textarea>
+        <dd><input type=submit value=post>
+      </dl>
+    </form>
+  {% endif %}
+  <ul class=entries>
+  {% for message in messages %}
+    <li><h2>{{ message.user }}: {{ message.time }}</h2>{{ message.msg|safe }}
+  {% else %}
+    <li><em>Unbelievable.  No posts here so far</em>
+  {% endfor %}
+  </ul>
+{% endblock %}
