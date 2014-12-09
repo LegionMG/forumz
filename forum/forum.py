@@ -49,9 +49,6 @@ def glagne():
     cur = g.db.execute('select * from sections')
     c = cur.fetchall()
     sections = [dict(name=row[1], id=row[0], desc=row[2]) for row in c]
-    if session.get['admin']:
-        render_template('a_main.html', sections=sections, error = None)
-
     return render_template('main.html', sections=sections, error = None)
 
 
@@ -140,7 +137,7 @@ def new_topic():
                 user, tid, date, request.form['msg'])
             return redirect(url_for('/topic={0}'.format(tid)))
         except:
-            flash('Already registered')
+            flash('Something is wrong')
             return render_template('new_topic.html', error = None)
     return render_template('new_topic.html', error = None) 
 
@@ -162,12 +159,7 @@ def get_topic(to=None):
         return redirect('/topic={0}'.format(to))
     cur = g.db.execute('select m.time, m.msg, u.nickname from (select * from messages where tid=(?)) as m join (select nickname, id from users) as u on u.id=m.uid',[to])
     c = cur.fetchall()
-    print(len(c))
     messages = [dict(msg=row[1], time=row[0], user=row[2]) for row in c]
-    print(len(messages))
-
-    if not session.get['logged_in']:
-        render_template('g_topic.html', messages=messages, error = None)
     return render_template('topic.html', messages=messages, error = None)
 #150267
 
