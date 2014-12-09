@@ -2,6 +2,7 @@ import os
 import sys
 import datetime
 import sqlite3
+from hashlib import md5
 from contextlib import closing
 from flask import Flask, request, session, g, redirect, url_for, abort, \
      render_template, flash
@@ -43,7 +44,18 @@ def teardown_request(exception):
     if db is not None:
         db.close()
 
-@app.route('/')
+@app.route('/', methods=['GET','POST'])
+def glagne():
+    cur = g.db.execute('select * from sections')
+    c = cur.fetchall()
+    sections = [dict(name=row[1], id=row[0], desc=row[2]) for row in c]
+    if session.get['admin']:
+        render_template('a_main.html', sections=sections, error = None)
+
+    return render_template('main.html', sections=sections, error = None)
+
+
+@app.route('/bloge')
 def show_entries():
     cur = g.db.execute('select title, text, user from entries order by id desc')
     entries = [dict(title=row[0], text=row[1], user=row[2]) for row in cur.fetchall()]
@@ -56,13 +68,14 @@ def login():
     error = None
     if request.method == 'POST':
         print(request.form)
-        cur = g.db.execute('select nickname, password from users order by id desc')
-        users = [dict(nickname=row[0], password=row[1]) for row in cur.fetchall()]
+        cur = g.db.execute('select nickname, password, role from users order by id desc')
+        users = [dict(nickname=row[0], password=row[1], role=row[2]) for row in cur.fetchall()]
         for i in users:
-            print(i)
-            if i['nickname']==request.form['username'] and i['password']==request.form['password']:
+            if i['nickname']==request.form['username'] and i['password']==md5(request.form['password'].encode('utf-8')).hexdigest():
                 session['logged_in'] = True
                 session['user'] = request.form['username']
+                if i['role'] == 0:
+                    session['admin'] = True
                 flash('You were logged in')
                 return redirect(url_for('show_entries'))
         else:
@@ -71,12 +84,13 @@ def login():
     return render_template('login.html', error=error)
 
 
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
 	if request.method == 'POST':
 		try:
 			g.db.execute('insert into users (nickname, password, role) values (?, ?, ?)',
-                 [request.form['nickname'], request.form['password'], 1])
+                 [request.form['nickname'], md5(request.form['password'].encode('utf-8')).hexdigest(), 1])
 			g.db.commit()
 			session['logged_in'] = True
 			session['user'] = request.form['nickname']
@@ -92,8 +106,11 @@ def register():
 @app.route('/logout')
 def logout():
     session.pop('logged_in', None)
+    session.pop('admin', None)
     flash('You were logged out')
     return redirect(url_for('show_entries'))
+
+
 
 @app.route('/section=<sect>', methods=['GET', 'POST'])
 def get_sections():
@@ -165,6 +182,13 @@ def debug():
         print(list(i))
     return redirect(url_for('show_entries'))
 
+
+@app.route('/adminnn')
+def add_admin():
+    g.db.execute('insert into users (nickname, password, role) values (?,?,?)',
+        ['Admin', md5('default'.encode('utf-8')).hexdigest(), 0])
+    g.db.commit()
+    return redirect(url_for('show_entries'))       
 
 @app.route('/add', methods=['POST'])
 def add_entry():
