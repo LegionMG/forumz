@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block body %}
+    <form action="{{ 'add_section' }}" method=post class=add-msg>
+      <dl>
+        <dt>Section Name:
+        <dd><textarea name=sname rows=5 cols=40></textarea>
+        <dt>Section Description:
+        <dd><textarea name=sdesc rows=5 cols=40></textarea>
+        <dd><input type=submit value=post>
+      </dl>
+    </form>
+{% endblock %}

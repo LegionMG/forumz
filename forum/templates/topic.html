@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block body %}
   {% if session.logged_in %}
-    <form action="{{ '/topic={0}'.format(session.get('topic')) }}" method=post class=add-msg>
+    <form action="{{ '/topic={0}'.format(topic) }}" method=post class=add-msg>
       <dl>
         <dt>Text:
         <dd><textarea name=msg rows=5 cols=40></textarea>

@@ -46,8 +46,9 @@ def teardown_request(exception):
 
 @app.route('/', methods=['GET','POST'])
 def glagne():
-    cur = g.db.execute('select * from sections')
+    cur = g.db.execute('select sid, sname, sdesc from sections')
     c = cur.fetchall()
+    print(list(c[0]))
     sections = [dict(name=row[1], id=row[0], desc=row[2]) for row in c]
     return render_template('main.html', sections=sections, error = None)
 
@@ -110,42 +111,58 @@ def logout():
 
 
 @app.route('/section=<sect>', methods=['GET', 'POST'])
-def get_sections():
+def get_sections(sect):
     topics = g.db.execute('select * from topics where sid=(?)', [sect])
     get_topics = topics.fetchall()
     topics = [dict(tid=row[0], tname=row[2], tdesc=row[3]) for row in get_topics]
-    if request.method == 'POST':
-        return redirect('/new_topic{0}'.format(sect))
     return render_template('section.html', topics=topics)
 
 
-@app.route('/new_topic<sect>', methods=['GET', 'POST'])
-def new_topic():
-    if not session.get['logged_in']:
+@app.route('/add_section', methods=['GET', 'POST'])
+def add_section():
+    if not session.get('logged_in'):
         abort(401)
     if request.method == 'POST':
         try:
+            print(request.form['sname'], request.form['sdesc'])
+            g.db.execute('insert into sections (sname, sdesc) values (?, ?)',
+                 [request.form['sname'], request.form['sdesc']])
+            g.db.commit()
+            return redirect(url_for('glagne'))
+        except Exception as err:
+            flash('Something is wrong')
+            print("lol", err)
+            return  render_template('new_section.html', error = None)
+    return render_template('new_section.html', error = None) 
+
+@app.route('/new_topic=<sect>', methods=['GET', 'POST'])
+def new_topic(sect):
+    if not session.get('logged_in'):
+        abort(401)
+    if request.method == 'POST':
+        #try:
             g.db.execute('insert into topics (sid, tname, tdesc) values (?, ?, ?)',
-                 sect, [request.form['tname'], request.form['tdesc']])
+                 [sect, request.form['tname'], request.form['tdesc']])
             g.db.commit()
             tid = g.db.execute('select max(tid) from topics')
             tid = tid.fetchall()[0][0]
-            cur = g.db.execute('select id from users where nickname=(?)',[user])
+            cur = g.db.execute('select id from users where nickname=(?)',[session.get('user')])
             user = cur.fetchall()[0][0]
             date = datetime.datetime.now()
             g.db.execute('insert into messages (uid, tid, time, msg) values (?, ?, ?, ?)',
-                user, tid, date, request.form['msg'])
-            return redirect(url_for('/topic={0}'.format(tid)))
-        except:
+                [user, tid, date, request.form['msg']])
+            return redirect(url_for('get_topic', to=tid))
+            '''except:
             flash('Something is wrong')
-            return render_template('new_topic.html', error = None)
-    return render_template('new_topic.html', error = None) 
+            return render_template('new_topic.html', error = None)'''
+    return render_template('new_topic.html', sect=sect, error = None) 
 
 
 
 @app.route('/topic=<to>', methods=['GET', 'POST'])
-def get_topic(to=None):
+def get_topic(to):
     c = g.db.execute('select * from topics where tid=(?)',[to])
+    print(to)
     if list(c.fetchall()) == []:
         abort(401)
     if request.method == 'POST':
@@ -160,7 +177,7 @@ def get_topic(to=None):
     cur = g.db.execute('select m.time, m.msg, u.nickname from (select * from messages where tid=(?)) as m join (select nickname, id from users) as u on u.id=m.uid',[to])
     c = cur.fetchall()
     messages = [dict(msg=row[1], time=row[0], user=row[2]) for row in c]
-    return render_template('topic.html', messages=messages, error = None)
+    return render_template('topic.html', topic=to, messages=messages, error = None)
 #150267
 
 @app.route('/debug')

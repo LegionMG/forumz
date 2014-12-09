@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+{% block body %}
+    <form action="{{ '/new_topic={0}'.format(sect) }}" method=post class=add-msg>
+      <dl>
+        <dt>Topicname:
+        <dd><textarea name=tname rows=5 cols=40></textarea>
+        <dt>Topic Description:
+        <dd><textarea name=tdesc rows=5 cols=40></textarea>
+        <dt>Message:
+        <dd><textarea name=msg rows=5 cols=40></textarea>
+        <dd><input type=submit value=post>
+      </dl>
+    </form>
+{% endblock %}
