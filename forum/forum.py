@@ -95,41 +95,75 @@ def logout():
     flash('You were logged out')
     return redirect(url_for('show_entries'))
 
+@app.route('/section=<sect>', methods=['GET', 'POST'])
+def get_sections():
+    topics = g.db.execute('select * from topics where sid=(?)', [sect])
+    get_topics = topics.fetchall()
+    topics = [dict(tid=row[0], tname=row[2], tdesc=row[3]) for row in get_topics]
+    if request.method == 'POST':
+        return redirect('/new_topic{0}'.format(sect))
+    return render_template('section.html', topics=topics)
+
+
+@app.route('/new_topic<sect>', methods=['GET', 'POST'])
+def new_topic():
+    if not session.get['logged_in']:
+        abort(401)
+    if request.method == 'POST':
+        try:
+            g.db.execute('insert into topics (sid, tname, tdesc) values (?, ?, ?)',
+                 sect, [request.form['tname'], request.form['tdesc']])
+            g.db.commit()
+            tid = g.db.execute('select max(tid) from topics')
+            tid = tid.fetchall()[0][0]
+            cur = g.db.execute('select id from users where nickname=(?)',[user])
+            user = cur.fetchall()[0][0]
+            date = datetime.datetime.now()
+            g.db.execute('insert into messages (uid, tid, time, msg) values (?, ?, ?, ?)',
+                user, tid, date, request.form['msg'])
+            return redirect(url_for('/topic={0}'.format(tid)))
+        except:
+            flash('Already registered')
+            return render_template('new_topic.html', error = None)
+    return render_template('new_topic.html', error = None) 
+
 
 
 @app.route('/topic=<to>', methods=['GET', 'POST'])
 def get_topic(to=None):
-	#print(to)
-	#print(request.method)
-	session['topic'] = to
-	if request.method == 'POST':
-		user = session.get('user')
-		date = datetime.datetime.now()
-		cur = g.db.execute('select id from users where nickname=(?)',[user])
-		user = cur.fetchall()
-		#print(user[0][0])
-		#print(list(request.form.keys()))
-		#print([user[0][0], to, date])
-		g.db.execute('insert into messages (uid, tid, time, msg) values (?, ?, ?, ?)',
+    c = g.db.execute('select * from topics where tid=(?)',[to])
+    if list(c.fetchall()) == []:
+        abort(401)
+    if request.method == 'POST':
+        user = session.get('user')
+        date = datetime.datetime.now()
+        cur = g.db.execute('select id from users where nickname=(?)',[user])
+        user = cur.fetchall()
+        g.db.execute('insert into messages (uid, tid, time, msg) values (?, ?, ?, ?)',
                  [user[0][0], to, date, request.form['msg']])
-		g.db.commit()
-		print("Ty hui")
-		return redirect('/topic={0}'.format(to))
-	cur = g.db.execute('select m.time, m.msg, u.nickname from (select * from messages where tid=(?)) as m join (select nickname, id from users) as u on u.id=m.uid',[to])
-	c = cur.fetchall()
-	print(len(c))
-	messages = [dict(msg=row[1], time=row[0], user=row[2]) for row in c]
-	print(len(messages))
-	return render_template('topic.html', messages=messages, error = None)
+        g.db.commit()
+        return redirect('/topic={0}'.format(to))
+    cur = g.db.execute('select m.time, m.msg, u.nickname from (select * from messages where tid=(?)) as m join (select nickname, id from users) as u on u.id=m.uid',[to])
+    c = cur.fetchall()
+    print(len(c))
+    messages = [dict(msg=row[1], time=row[0], user=row[2]) for row in c]
+    print(len(messages))
+
+    if not session.get['logged_in']:
+        render_template('g_topic.html', messages=messages, error = None)
+    return render_template('topic.html', messages=messages, error = None)
 #150267
 
 @app.route('/debug')
 def debug():
-	cur = g.db.execute('select * from users')
-	users = cur.fetchall()
-	for i in users:
-		print(list(i))
-	return redirect(url_for('show_entries'))
+    cur = g.db.execute('select * from users')
+    users = cur.fetchall()
+    cur = g.db.execute('select max(id) from users')
+    c = cur.fetchall()
+    print(c[0][0])
+    for i in users:
+        print(list(i))
+    return redirect(url_for('show_entries'))
 
 
 @app.route('/add', methods=['POST'])
