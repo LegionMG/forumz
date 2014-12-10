@@ -2,7 +2,7 @@
 {% block body %}
   <ul class=sections>
   {% for section in sections %}
-    <li><a href="{{'http://localhost:5000/section={0}'.format(section.id)}}"><h2>{{ section.name }}</h2></a><br>{{ section.desc|safe }}
+    <li><a href="{{'http://localhost:5000/section{0}'.format(section.id)}}"><h2>{{ section.name }}</h2></a><br>{{ section.desc|safe }}
   {% else %}
     <li><em>Unbelievable.  No posts here so far</em>
   {% endfor %}

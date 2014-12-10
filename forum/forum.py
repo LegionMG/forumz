@@ -110,7 +110,7 @@ def logout():
 
 
 
-@app.route('/section=<sect>', methods=['GET', 'POST'])
+@app.route('/section<sect>', methods=['GET', 'POST'])
 def get_sections(sect):
     topics = g.db.execute('select * from topics where sid=(?)', [sect])
     get_topics = topics.fetchall()
@@ -131,35 +131,36 @@ def add_section():
             return redirect(url_for('glagne'))
         except Exception as err:
             flash('Something is wrong')
-            print("lol", err)
-            return  render_template('new_section.html', error = None)
+            return render_template('new_section.html', error = None)
     return render_template('new_section.html', error = None) 
 
-@app.route('/new_topic=<sect>', methods=['GET', 'POST'])
+@app.route('/new_topic<sect>', methods=['GET', 'POST'])
 def new_topic(sect):
     if not session.get('logged_in'):
         abort(401)
     if request.method == 'POST':
-        #try:
+        try:
             g.db.execute('insert into topics (sid, tname, tdesc) values (?, ?, ?)',
                  [sect, request.form['tname'], request.form['tdesc']])
             g.db.commit()
             tid = g.db.execute('select max(tid) from topics')
             tid = tid.fetchall()[0][0]
+            print(tid)
             cur = g.db.execute('select id from users where nickname=(?)',[session.get('user')])
             user = cur.fetchall()[0][0]
             date = datetime.datetime.now()
             g.db.execute('insert into messages (uid, tid, time, msg) values (?, ?, ?, ?)',
                 [user, tid, date, request.form['msg']])
+            g.db.commit()
             return redirect(url_for('get_topic', to=tid))
-            '''except:
+        except:
             flash('Something is wrong')
-            return render_template('new_topic.html', error = None)'''
+            return render_template('new_topic.html', error = None)
     return render_template('new_topic.html', sect=sect, error = None) 
 
 
 
-@app.route('/topic=<to>', methods=['GET', 'POST'])
+@app.route('/topic<to>', methods=['GET', 'POST'])
 def get_topic(to):
     c = g.db.execute('select * from topics where tid=(?)',[to])
     print(to)
@@ -173,7 +174,7 @@ def get_topic(to):
         g.db.execute('insert into messages (uid, tid, time, msg) values (?, ?, ?, ?)',
                  [user[0][0], to, date, request.form['msg']])
         g.db.commit()
-        return redirect('/topic={0}'.format(to))
+        return redirect('/topic{0}'.format(to))
     cur = g.db.execute('select m.time, m.msg, u.nickname from (select * from messages where tid=(?)) as m join (select nickname, id from users) as u on u.id=m.uid',[to])
     c = cur.fetchall()
     messages = [dict(msg=row[1], time=row[0], user=row[2]) for row in c]
