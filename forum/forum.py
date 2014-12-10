@@ -48,7 +48,6 @@ def teardown_request(exception):
 def glagne():
     cur = g.db.execute('select sid, sname, sdesc from sections')
     c = cur.fetchall()
-    print(list(c[0]))
     sections = [dict(name=row[1], id=row[0], desc=row[2]) for row in c]
     return render_template('main.html', sections=sections, error = None)
 
@@ -85,19 +84,22 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-	if request.method == 'POST':
-		try:
-			g.db.execute('insert into users (nickname, password, role) values (?, ?, ?)',
+    if request.method == 'POST':
+        try:
+            if len(request.form['nickname']) < 3 or len(request.form['nickname']) > 16 or len(request.form['password']) < 4:
+                flash('NET')
+                return render_template('register.html', error = None) 
+            g.db.execute('insert into users (nickname, password, role) values (?, ?, ?)',
                  [request.form['nickname'], md5(request.form['password'].encode('utf-8')).hexdigest(), 1])
-			g.db.commit()
-			session['logged_in'] = True
-			session['user'] = request.form['nickname']
-			session['role'] = 1
-			return redirect(url_for('show_entries'))
-		except:
-			flash('Already registered')
-			return render_template('register.html', error = None) 
-	return render_template('register.html', error = None) 
+            g.db.commit()
+            session['logged_in'] = True
+            session['user'] = request.form['nickname']
+            session['role'] = 1
+            return redirect(url_for('show_entries'))
+        except:
+            flash('Already registered')
+            return render_template('register.html', error = None) 
+    return render_template('register.html', error = None) 
 
 
 
