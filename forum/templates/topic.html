@@ -11,7 +11,7 @@
   {% endif %}
   <ul class=entries>
   {% for message in messages %}
-    <li><h2>{{ message.user }}: {{ message.time }}</h2>{{ message.msg|safe }}
+    <li><h2>{{ message.user|e }}: {{ message.time }}</h2>{{ message.msg|e }}
   {% else %}
     <li><em>Unbelievable.  No posts here so far</em>
   {% endfor %}
