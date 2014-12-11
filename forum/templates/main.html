@@ -2,7 +2,7 @@
 {% block body %}
   <ul class=sections>
   {% for section in sections %}
-    <li><a href="{{ url_for('glagne')+'section{0}'.format(section.id) }}"><h2>{{ section.name }}</h2></a><br>{{ section.desc|safe }}
+    <li><a href="{{ url_for('glagne')+'section{0}'.format(section.id) }}"><h2>{{ section.name|safe }}</h2></a><br>{{ section.desc|safe }}
   {% endfor %}
   </ul>
   <script type="text/javascript">

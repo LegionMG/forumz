@@ -2,6 +2,7 @@ import os
 import sys
 import datetime
 import sqlite3
+import pickle
 from hashlib import md5
 from contextlib import closing
 from flask import Flask, request, session, g, jsonify, redirect, url_for, abort, \
@@ -29,6 +30,10 @@ def connect_db():
     return rv
 
 def init_db():
+    f=open("logged", "wb")
+    k=set().add("Nobody:(")
+    pickle.dump(k, f)
+    f.close()
     with closing(connect_db()) as db:
         with app.open_resource('schema.sql', mode='r') as f:
             db.cursor().executescript(f.read())
@@ -65,7 +70,7 @@ def show_entries():
 def login():
     error = None
     if request.method == 'POST':
-        print(request.form)
+        #print(request.form)
         cur = g.db.execute('select nickname, password, role from users order by id desc')
         users = [dict(nickname=row[0], password=row[1], role=row[2]) for row in cur.fetchall()]
         for i in users:
@@ -75,7 +80,14 @@ def login():
                 if i['role'] == 0:
                     session['admin'] = True
                 flash('You were logged in')
+                try:
+                    logged.remove("Nobody:(")
+                except:
+                    pass
                 logged.add(request.form['username'])
+                f=open("logged","wb")
+                pickle.dump(logged, f)
+                f.close()
                 return redirect(url_for('show_entries'))
         else:
         	flash('No such users')
@@ -94,7 +106,14 @@ def register():
             g.db.execute('insert into users (nickname, password, role) values (?, ?, ?)',
                  [request.form['nickname'], md5(request.form['password'].encode('utf-8')).hexdigest(), 1])
             g.db.commit()
+            try:
+                logged.remove("Nobody:(")
+            except:
+                pass
             logged.add(request.form['nickname'])
+            f=open("logged","wb")
+            pickle.dump(logged, f)
+            f.close()
             session['logged_in'] = True
             session['user'] = request.form['nickname']
             session['role'] = 1
@@ -111,7 +130,13 @@ def logout():
     session.pop('logged_in', None)
     session.pop('admin', None)
     logged.remove(session.get('user'))
+    session.pop('user')
+    if logged==set():
+        logged.add("Nobody:(")
     flash('You were logged out')
+    f=open("logged","wb")
+    pickle.dump(logged, f)
+    f.close()
     return redirect(url_for('show_entries'))
 
 
@@ -210,13 +235,6 @@ def get_online_guys():
     return jsonify(result=result[:len(result)-2])
 
 
-@app.route('/adminnn')
-def add_admin():
-    g.db.execute('insert into users (nickname, password, role) values (?,?,?)',
-        ['Admin', md5('default'.encode('utf-8')).hexdigest(), 0])
-    g.db.commit()
-    return redirect(url_for('show_entries'))       
-
 @app.route('/add', methods=['POST'])
 def add_entry():
     if not session.get('logged_in'):
@@ -229,4 +247,7 @@ def add_entry():
 
 
 if __name__ == '__main__':
+    f=open("logged","rb")
+    logged=pickle.load(f)
+    f.close()
     app.run(host='0.0.0.0')
