@@ -1,12 +1,14 @@
 {% extends "layout.html" %}
 {% block body %}
-    <form action="{{ url_for('register') }}" method=post class=register>
-      <dl>
-        <dt>Nickname:
-        <dd><input type=text size=30 name=nickname>
-        <dt>Password:
-        <dd><input type=password name=password>
-        <dd><input type=submit value=register>
-      </dl>
-    </form>
+    {% from "_formhelpers.html" import render_field %}
+	<form method=post action="/register">
+  	<dl>
+    {{ render_field(form.username) }}
+    {{ render_field(form.email) }}
+    {{ render_field(form.password) }}
+    {{ render_field(form.confirm) }}
+    {{ render_field(form.recaptcha) }}
+  	</dl>
+  	<p><input type=submit value=Register>
+	</form>
 {% endblock %}

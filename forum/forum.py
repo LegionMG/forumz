@@ -3,15 +3,26 @@ import sys
 import datetime
 import sqlite3
 import pickle
+import smtpzz
 from hashlib import md5
 from contextlib import closing
 from flask import Flask, request, session, g, jsonify, redirect, url_for, abort, \
      render_template, flash
+from wtforms import Form, BooleanField, TextField, PasswordField, validators
+from wtforms.fields.html5 import EmailField
+from flask_wtf import RecaptchaField
 
 
+
+RECAPTCHA_OPTIONS = {'theme': 'red'}
+RECAPTCHA_PUBLIC_KEY = "6LeMG_8SAAAAADSgarnyIDbMWMiWxbFGAWytnqEY"
+RECAPTCHA_PRIVATE_KEY = "6LeMG_8SAAAAAFHpuPWxxnvYzXUodNjG123UG59X"
+my_domain="http://10.113.119.34:5000/confirm"
+logged = set()
+not_auted = set()
 app = Flask(__name__)
 app.config.from_object(__name__)
-logged = set()
+
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
@@ -31,7 +42,13 @@ def connect_db():
 
 def init_db():
     f=open("logged", "wb")
-    k=set().add("Nobody:(")
+    k=set()
+    k.add("Nobody:(")
+    pickle.dump(k, f)
+    f.close()
+    f=open("not_auted", "wb")
+    k=set()
+    k.add("Nobody:(")
     pickle.dump(k, f)
     f.close()
     with closing(connect_db()) as db:
@@ -39,6 +56,16 @@ def init_db():
             db.cursor().executescript(f.read())
         db.commit()   
 
+
+class RegistrationForm(Form):
+    username = TextField('Username', [validators.Length(min=4, max=25)])
+    email = EmailField('Email Address', [validators.Length(min=6, max=35)])
+    password = PasswordField('New Password', [
+        validators.Required(),
+        validators.EqualTo('confirm', message='Passwords must match')
+    ])
+    confirm = PasswordField('Repeat Password')
+    recaptcha = RecaptchaField()
 
 @app.before_request
 def before_request():
@@ -75,7 +102,8 @@ def login():
         users = [dict(nickname=row[0], password=row[1], role=row[2]) for row in cur.fetchall()]
         for i in users:
             if i['nickname']==request.form['username'] and i['password']==md5(request.form['password'].encode('utf-8')).hexdigest():
-                session['logged_in'] = True
+                if request.form['username'] not in not_auted:
+                    session['logged_in'] = True
                 session['user'] = request.form['username']
                 if i['role'] == 0:
                     session['admin'] = True
@@ -98,32 +126,51 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if request.method == 'POST':
+    form = RegistrationForm(request.form)
+    if request.method == 'POST' and form.validate():
+        print(form.username.data)
         try:
-            if len(request.form['nickname']) < 3 or len(request.form['nickname']) > 16 or len(request.form['password']) < 4:
-                flash('NET')
-                return render_template('register.html', error = None) 
             g.db.execute('insert into users (nickname, password, role) values (?, ?, ?)',
-                 [request.form['nickname'], md5(request.form['password'].encode('utf-8')).hexdigest(), 1])
+                     [form.username.data, md5(form.password.data.encode('utf-8')).hexdigest(), 1])
             g.db.commit()
             try:
                 logged.remove("Nobody:(")
             except:
                 pass
-            logged.add(request.form['nickname'])
+            smtpzz.sendpls([form.email.data], my_domain+md5(form.username.data.encode('utf-8')).hexdigest())
+            flash('Thanks for registering! Now confirm your mail, please!')
+            logged.add(form.username.data)
+            not_auted.add(form.username.data)
             f=open("logged","wb")
             pickle.dump(logged, f)
             f.close()
+            f=open("not_auted","wb")
+            pickle.dump(not_auted, f)
+            f.close()
             session['logged_in'] = True
-            session['user'] = request.form['nickname']
+            session['user'] = form.username.data
             session['role'] = 1
-            return redirect(url_for('show_entries'))
+            return redirect(url_for('glagne'))
         except:
-            flash('Already registered')
-            return render_template('register.html', error = None) 
-    return render_template('register.html', error = None) 
+            flash('Try again (bad email or used nickname)') 
+            return render_template('register.html', form=form)
+    return render_template('register.html', form=form)
 
-
+@app.route('/confirm<hashz>')
+def confirmation(hashz):
+    print(hashz)
+    print(not_auted)
+    for i in list(not_auted):
+        print(i)
+        print(md5(i.encode('utf-8')).hexdigest())
+        print(hashz, md5(i.encode('utf-8')).hexdigest(), md5(i.encode('utf-8')).hexdigest() == hashz)
+        if md5(i.encode('utf-8')).hexdigest() == hashz:
+            not_auted.remove(i)
+            print(not_auted)
+            flash('Confirmed!')
+    if not_auted==set():
+        not_auted.add("Nobody:(")
+    return redirect(url_for('glagne'))
 
 @app.route('/logout')
 def logout():
@@ -171,6 +218,7 @@ def new_topic(sect):
         abort(401)
     if request.method == 'POST':
         try:
+            g.db.execute("select * from sections where sid=(?)", sect)
             g.db.execute('insert into topics (sid, tname, tdesc) values (?, ?, ?)',
                  [sect, request.form['tname'], request.form['tdesc']])
             g.db.commit()
@@ -209,7 +257,7 @@ def get_topic(to):
     cur = g.db.execute('select m.time, m.msg, u.nickname from (select * from messages where tid=(?)) as m join (select nickname, id from users) as u on u.id=m.uid',[to])
     c = cur.fetchall()
     messages = [dict(msg=row[1], time=row[0], user=row[2]) for row in c]
-    return render_template('topic.html', topic=to, messages=messages, error = None)
+    return render_template('topic.html', topic=to, messages=messages, not_auted=not_auted, error = None)
 #150267
 
 @app.route('/debug')
