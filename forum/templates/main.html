@@ -2,9 +2,22 @@
 {% block body %}
   <ul class=sections>
   {% for section in sections %}
-    <li><a href="{{'http://localhost:5000/section{0}'.format(section.id)}}"><h2>{{ section.name }}</h2></a><br>{{ section.desc|safe }}
-  {% else %}
-    <li><em>Unbelievable.  No posts here so far</em>
+    <li><a href="{{ url_for('glagne')+'section{0}'.format(section.id) }}"><h2>{{ section.name }}</h2></a><br>{{ section.desc|safe }}
   {% endfor %}
   </ul>
+  <script type="text/javascript">
+  $(function(){
+         // Set up a function to update your label using the counter (every 1000ms or 1s)
+         setInterval(function update() {
+      $.getJSON($SCRIPT_ROOT + '/_who_is_online', function(data) {
+        $('#result').text(data.result);
+      });
+      return false;
+      window.setTimeout(update, 20000);
+    },100);
+    });
+</script>
+Online:
+<p>
+  <span id="result"></span>
 {% endblock %}

@@ -2,7 +2,7 @@
 {% block body %}
   <ul class=entries>
   {% for topic in topics %}
-    <li><a href="{{ 'http://localhost:5000/topic{0}'.format(topic.tid) }}"}><h2>{{ topic.tname }}</h2></a>{{ topic.tdesc|safe }}
+    <li><a href="{{ url_for('glagne')+'topic{0}'.format(topic.tid) }}"}><h2>{{ topic.tname }}</h2></a>{{ topic.tdesc|safe }}
   {% else %}
     <li><em>Unbelievable.  No topics here so far</em>
   {% endfor %}

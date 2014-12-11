@@ -4,12 +4,13 @@ import datetime
 import sqlite3
 from hashlib import md5
 from contextlib import closing
-from flask import Flask, request, session, g, redirect, url_for, abort, \
+from flask import Flask, request, session, g, jsonify, redirect, url_for, abort, \
      render_template, flash
 
 
 app = Flask(__name__)
 app.config.from_object(__name__)
+logged = set()
 
 # Load default config and override config from an environment variable
 app.config.update(dict(
@@ -74,6 +75,7 @@ def login():
                 if i['role'] == 0:
                     session['admin'] = True
                 flash('You were logged in')
+                logged.add(request.form['username'])
                 return redirect(url_for('show_entries'))
         else:
         	flash('No such users')
@@ -92,6 +94,7 @@ def register():
             g.db.execute('insert into users (nickname, password, role) values (?, ?, ?)',
                  [request.form['nickname'], md5(request.form['password'].encode('utf-8')).hexdigest(), 1])
             g.db.commit()
+            logged.add(request.form['nickname'])
             session['logged_in'] = True
             session['user'] = request.form['nickname']
             session['role'] = 1
@@ -107,6 +110,7 @@ def register():
 def logout():
     session.pop('logged_in', None)
     session.pop('admin', None)
+    logged.remove(session.get('user'))
     flash('You were logged out')
     return redirect(url_for('show_entries'))
 
@@ -193,6 +197,17 @@ def debug():
     for i in users:
         print(list(i))
     return redirect(url_for('show_entries'))
+
+
+@app.route('/_who_is_online')
+def get_online_guys():
+    """Add two numbers server side, ridiculous but well..."""
+    online = list(logged)
+    result = ""
+    for i in online:
+        result+=i+", "
+    print(result)
+    return jsonify(result=result[:len(result)-2])
 
 
 @app.route('/adminnn')
